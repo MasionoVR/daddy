@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fullscreen DadPic</title>
+  <style>
+    /* Remove default margins and ensure the viewport is fully used */
+    html, body { margin: 0; height: 100%; }
+
+    /* Make the image fill the entire viewport */
+    img {
+      width: 100vw;      /* full viewport width  */
+      height: 100vh;     /* full viewport height */
+      object-fit: cover; /* cover area while keeping aspect ratio */
+      display: block;    /* remove inline‑element whitespace */
+    }
+  </style>
+</head>
+<body>
+  <img src="DadPic.png" alt="Dad Picture">
+</body>
+</html>
