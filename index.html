@@ -2,24 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>DadPic — Fullscreen</title>
+  <title>DadPic — Fit to Screen</title>
+
+  <!-- Mobile‑friendly sizing -->
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
   <style>
+    /* Reset and make a flexbox that centers content */
     html, body {
       margin: 0;
       height: 100%;
+      display: flex;
+      align-items: center;      /* vertical center */
+      justify-content: center;  /* horizontal center */
+      background: #000;         /* black letterbox bands (optional) */
     }
+
+    /* Image scales down but never up beyond its own pixels */
     img {
+      max-width: 90vw;   /* leave a 5 % margin on each side */
+      max-height: 90vh;  /* leave a 5 % margin top/bottom */
+      width: auto;
+      height: auto;
       display: block;
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-      object-position: center;
     }
   </style>
 </head>
 <body>
+  <!-- Ensure DadPic.png is in the same folder -->
   <img src="DadPic.png" alt="Dad Picture" />
 </body>
 </html>
