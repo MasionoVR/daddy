@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Draw with Stickers</title>
+<title>Draw with Pee Pee Sticker Placement</title>
 
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -33,20 +33,32 @@
     position: absolute;
     inset: 0;
     touch-action: none;
+    z-index: 1;
   }
   #stickers {
     position: absolute;
     inset: 0;
-    pointer-events: none; /* stickers won't block drawing or clicks */
+    pointer-events: none; /* stickers container doesn't block pointer */
+    z-index: 2;
   }
   .sticker {
     position: absolute;
     width: 60px;
     height: 100px;
     user-select: none;
-    pointer-events: auto; /* enable interaction for future use if needed */
+    pointer-events: auto;
     cursor: grab;
     touch-action: none;
+  }
+  #previewSticker {
+    position: fixed;
+    width: 60px;
+    height: 100px;
+    pointer-events: none;
+    opacity: 0.6;
+    display: none;
+    z-index: 1000;
+    user-select: none;
   }
   #controls {
     position: fixed;
@@ -102,6 +114,9 @@
     <div id="stickers"></div>
   </div>
 
+  <!-- Preview sticker that follows cursor -->
+  <img id="previewSticker" src="peepee.png" alt="Sticker preview" />
+
   <div id="controls">
     <label for="uploadBtn">Upload Image:</label>
     <input type="file" id="uploadBtn" accept="image/*" title="Upload an image to draw on" />
@@ -129,13 +144,13 @@
   const brushSize = document.getElementById('brushSize');
   const stickerBtn = document.getElementById('stickerBtn');
   const stickersContainer = document.getElementById('stickers');
+  const previewSticker = document.getElementById('previewSticker');
   const dpr = window.devicePixelRatio || 1;
   
   let drawing = false, prevX = 0, prevY = 0;
   let isEraser = false;
   let placingSticker = false;
 
-  // Resize canvas and keep drawing
   function resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -174,7 +189,9 @@
   }
 
   function pointerMove(e) {
-    if (drawing && !placingSticker) {
+    if (placingSticker) {
+      movePreviewSticker(e);
+    } else if (drawing) {
       const { x, y } = getPos(e);
       ctx.beginPath();
       ctx.moveTo(prevX, prevY);
@@ -194,31 +211,88 @@
 
   function pointerUp() { drawing = false; }
 
+  function movePreviewSticker(e) {
+    const { x, y } = getPos(e);
+    // Center the preview image on cursor
+    previewSticker.style.left = (x - previewSticker.width / 2) + 'px';
+    previewSticker.style.top = (y - previewSticker.height / 2) + 'px';
+  }
+
   function placeSticker(e) {
     const { x, y } = getPos(e);
-
-    // Create sticker element
+    // Create a new img element for sticker
     const sticker = document.createElement('img');
     sticker.className = 'sticker';
-    sticker.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
-      <svg viewBox="0 0 60 100" xmlns="http://www.w3.org/2000/svg">
-        <!-- Simple stylized cartoon "pee pee" shape -->
-        <defs>
-          <radialGradient id="grad" cx="50%" cy="30%" r="50%">
-            <stop offset="0%" stop-color="#fcd7b6" />
-            <stop offset="100%" stop-color="#db9f82" />
-          </radialGradient>
-        </defs>
-        <path fill="url(#grad)" stroke="#a6653d" stroke-width="2"
-          d="M30 5
-             Q40 15 38 40
-             Q42 85 30 95
-             Q18 85 22 40
-             Q20 15 30 5 Z
-             M28 55
-             Q30 60 32 55
-             Q30 53 28 55 Z" />
-      </svg>
-    `);
-    // Position the sticker centered at click/tap
-    const wrapperRect = document.getElementById('wrapper').getBou
+    sticker.src = previewSticker.src;
+
+    const wrapperRect = document.getElementById('wrapper').getBoundingClientRect();
+    // Position relative to #wrapper
+    const left = x - wrapperRect.left - sticker.width / 2;
+    const top = y - wrapperRect.top - sticker.height / 2;
+    sticker.style.left = left + 'px';
+    sticker.style.top = top + 'px';
+
+    stickersContainer.appendChild(sticker);
+  }
+
+  canvas.addEventListener('mousedown', pointerDown);
+  canvas.addEventListener('touchstart', pointerDown, { passive: false });
+  window.addEventListener('mousemove', pointerMove);
+  window.addEventListener('touchmove', pointerMove, { passive: false });
+  window.addEventListener('mouseup', pointerUp);
+  window.addEventListener('touchend', pointerUp);
+
+  clearBtn.onclick = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stickersContainer.innerHTML = '';
+  };
+
+  colorPicker.addEventListener('input', () => {
+    if (!isEraser) {
+      ctx.strokeStyle = colorPicker.value;
+    }
+  });
+
+  brushSize.addEventListener('input', () => {
+    ctx.lineWidth = brushSize.value;
+  });
+
+  eraserBtn.onclick = () => {
+    isEraser = !isEraser;
+    if (isEraser) {
+      eraserBtn.textContent = 'Eraser On';
+      ctx.strokeStyle = '#00000000'; // transparent because clearing pixels
+    } else {
+      eraserBtn.textContent = 'Eraser Off';
+      ctx.strokeStyle = colorPicker.value;
+    }
+  };
+
+  stickerBtn.onclick = () => {
+    placingSticker = !placingSticker;
+    if (placingSticker) {
+      stickerBtn.textContent = 'Click to Place Sticker';
+      previewSticker.style.display = 'block';
+    } else {
+      stickerBtn.textContent = 'Add Pee Pee Sticker';
+      previewSticker.style.display = 'none';
+    }
+  };
+
+  uploadBtn.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      bg.src = event.target.result;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      stickersContainer.innerHTML = '';
+    };
+    reader.readAsDataURL(file);
+  });
+})();
+</script>
+</body>
+</html>
