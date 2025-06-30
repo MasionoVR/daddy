@@ -13,6 +13,7 @@
     height: 100%;
     overflow: hidden;
     background: #000;
+    touch-action: none; /* Prevent default pinch zoom */
   }
   #wrapper {
     position: relative;
@@ -20,6 +21,9 @@
     height: 100vh;
     background: #000;
     user-select: none;
+    overflow: hidden;
+    touch-action: none;
+    transform-origin: 0 0; /* Scale from top-left */
   }
   #bg {
     width: 100%;
@@ -28,6 +32,8 @@
     object-position: center;
     display: block;
     -webkit-user-drag: none;
+    user-select: none;
+    pointer-events: none;
   }
   #paint {
     position: absolute;
@@ -73,13 +79,13 @@
     gap: 0.6rem 1rem;
     align-items: center;
     user-select: none;
-    max-width: 380px;
+    max-width: 420px;
     z-index: 10;
   }
   #controls label {
     white-space: nowrap;
   }
-  #clearBtn, #eraserBtn, #stickerBtn {
+  #clearBtn, #eraserBtn, #stickerBtn, #togglePainterBtn {
     padding: 0.3rem 0.7rem;
     border: none;
     border-radius: 5px;
@@ -88,7 +94,7 @@
     cursor: pointer;
     user-select: none;
   }
-  #clearBtn:hover, #eraserBtn:hover, #stickerBtn:hover {
+  #clearBtn:hover, #eraserBtn:hover, #stickerBtn:hover, #togglePainterBtn:hover {
     background: #222;
   }
   input[type=range] {
@@ -134,10 +140,12 @@
     <button id="eraserBtn" title="Toggle eraser">Eraser Off</button>
     <button id="clearBtn" title="Clear drawing and stickers">Clear</button>
     <button id="stickerBtn" title="Add Sticker">Add Sticker</button>
+    <button id="togglePainterBtn" title="Enable/Disable painting">Painter Enabled</button>
   </div>
 
 <script>
 (() => {
+  const wrapper = document.getElementById('wrapper');
   const canvas = document.getElementById('paint');
   const ctx = canvas.getContext('2d');
   const bg = document.getElementById('bg');
@@ -148,13 +156,19 @@
   const eraserBtn = document.getElementById('eraserBtn');
   const brushSize = document.getElementById('brushSize');
   const stickerBtn = document.getElementById('stickerBtn');
+  const togglePainterBtn = document.getElementById('togglePainterBtn');
   const stickersContainer = document.getElementById('stickers');
   const previewSticker = document.getElementById('previewSticker');
   const dpr = window.devicePixelRatio || 1;
-  
+
   let drawing = false, prevX = 0, prevY = 0;
   let isEraser = false;
   let placingSticker = false;
+  let painterEnabled = true;
+
+  // For pinch zoom
+  let scale = 1;
+  let lastDistance = null;
 
   // Resize canvas and keep drawing content
   function resize() {
@@ -187,7 +201,7 @@
   function pointerDown(e) {
     if (placingSticker) {
       placeSticker(e);
-    } else {
+    } else if (painterEnabled) {
       drawing = true;
       ({ x: prevX, y: prevY } = getPos(e));
     }
@@ -197,7 +211,7 @@
   function pointerMove(e) {
     if (placingSticker) {
       movePreviewSticker(e);
-    } else if (drawing) {
+    } else if (drawing && painterEnabled) {
       const { x, y } = getPos(e);
       ctx.beginPath();
       ctx.moveTo(prevX, prevY);
@@ -230,7 +244,7 @@
     sticker.className = 'sticker';
     sticker.src = previewSticker.src;
 
-    const wrapperRect = document.getElementById('wrapper').getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
     // Position relative to wrapper, top-left exactly where cursor was
     const left = x - wrapperRect.left;
     const top = y - wrapperRect.top;
@@ -284,6 +298,11 @@
     }
   };
 
+  togglePainterBtn.onclick = () => {
+    painterEnabled = !painterEnabled;
+    togglePainterBtn.textContent = painterEnabled ? 'Painter Enabled' : 'Painter Disabled';
+  };
+
   uploadBtn.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -307,6 +326,36 @@
       previewSticker.src = event.target.result;
     };
     reader.readAsDataURL(file);
+  });
+
+  // Pinch zoom support on mobile
+  wrapper.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+
+      const dx = touch2.clientX - touch1.clientX;
+      const dy = touch2.clientY - touch1.clientY;
+      const distance = Math.hypot(dx, dy);
+
+      if (lastDistance !== null) {
+        const delta = distance - lastDistance;
+        // Change scale by a fraction of delta, adjust sensitivity here
+        scale += delta * 0.005;
+        scale = Math.min(Math.max(0.5, scale), 3); // Clamp scale between 0.5 and 3
+
+        wrapper.style.transform = `scale(${scale})`;
+      }
+      lastDistance = distance;
+    }
+  }, { passive: false });
+
+  wrapper.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+      lastDistance = null;
+    }
   });
 })();
 </script>
