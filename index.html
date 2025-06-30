@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Draw on Uploadable Picture</title>
+<title>Draw with Stickers</title>
 
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -19,6 +19,7 @@
     width: 100vw;
     height: 100vh;
     background: #000;
+    user-select: none;
   }
   #bg {
     width: 100%;
@@ -26,12 +27,25 @@
     object-fit: contain;
     object-position: center;
     display: block;
-    user-select: none;
     -webkit-user-drag: none;
   }
   #paint {
     position: absolute;
     inset: 0;
+    touch-action: none;
+  }
+  #stickers {
+    position: absolute;
+    inset: 0;
+    pointer-events: none; /* stickers won't block drawing or clicks */
+  }
+  .sticker {
+    position: absolute;
+    width: 60px;
+    height: 100px;
+    user-select: none;
+    pointer-events: auto; /* enable interaction for future use if needed */
+    cursor: grab;
     touch-action: none;
   }
   #controls {
@@ -47,12 +61,13 @@
     gap: 0.6rem 1rem;
     align-items: center;
     user-select: none;
-    max-width: 320px;
+    max-width: 340px;
+    z-index: 10;
   }
   #controls label {
     white-space: nowrap;
   }
-  #clearBtn, #eraserBtn {
+  #clearBtn, #eraserBtn, #stickerBtn {
     padding: 0.3rem 0.7rem;
     border: none;
     border-radius: 5px;
@@ -61,7 +76,7 @@
     cursor: pointer;
     user-select: none;
   }
-  #clearBtn:hover, #eraserBtn:hover {
+  #clearBtn:hover, #eraserBtn:hover, #stickerBtn:hover {
     background: #222;
   }
   input[type=range] {
@@ -84,6 +99,7 @@
   <div id="wrapper">
     <img id="bg" src="DadPic.png" alt="Picture to draw on" />
     <canvas id="paint"></canvas>
+    <div id="stickers"></div>
   </div>
 
   <div id="controls">
@@ -98,6 +114,7 @@
 
     <button id="eraserBtn" title="Toggle eraser">Eraser Off</button>
     <button id="clearBtn" title="Clear drawing">Clear</button>
+    <button id="stickerBtn" title="Add Pee Pee Sticker">Add Pee Pee Sticker</button>
   </div>
 
 <script>
@@ -110,16 +127,19 @@
   const clearBtn = document.getElementById('clearBtn');
   const eraserBtn = document.getElementById('eraserBtn');
   const brushSize = document.getElementById('brushSize');
+  const stickerBtn = document.getElementById('stickerBtn');
+  const stickersContainer = document.getElementById('stickers');
   const dpr = window.devicePixelRatio || 1;
   
   let drawing = false, prevX = 0, prevY = 0;
   let isEraser = false;
+  let placingSticker = false;
 
+  // Resize canvas and keep drawing
   function resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    // Save current drawing before resizing (optional)
     const temp = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
     canvas.width = w * dpr;
@@ -130,11 +150,9 @@
     ctx.scale(dpr, dpr);
     ctx.lineCap = 'round';
 
-    // Restore brush size & color/eraser
     ctx.lineWidth = brushSize.value;
     ctx.strokeStyle = isEraser ? '#00000000' : colorPicker.value;
 
-    // Restore previous drawing
     ctx.putImageData(temp, 0, 0);
   }
   resize();
@@ -146,77 +164,61 @@
   }
 
   function pointerDown(e) {
-    drawing = true;
-    ({ x: prevX, y: prevY } = getPos(e));
+    if (placingSticker) {
+      placeSticker(e);
+    } else {
+      drawing = true;
+      ({ x: prevX, y: prevY } = getPos(e));
+    }
     e.preventDefault();
   }
 
   function pointerMove(e) {
-    if (!drawing) return;
-    const { x, y } = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(prevX, prevY);
-    ctx.lineTo(x, y);
+    if (drawing && !placingSticker) {
+      const { x, y } = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(prevX, prevY);
+      ctx.lineTo(x, y);
 
-    if (isEraser) {
-      ctx.clearRect(x - ctx.lineWidth/2, y - ctx.lineWidth/2, ctx.lineWidth, ctx.lineWidth);
-    } else {
-      ctx.stroke();
+      if (isEraser) {
+        ctx.clearRect(x - ctx.lineWidth/2, y - ctx.lineWidth/2, ctx.lineWidth, ctx.lineWidth);
+      } else {
+        ctx.stroke();
+      }
+
+      prevX = x;
+      prevY = y;
+      e.preventDefault();
     }
-
-    prevX = x;
-    prevY = y;
-    e.preventDefault();
   }
 
   function pointerUp() { drawing = false; }
 
-  canvas.addEventListener('mousedown', pointerDown);
-  canvas.addEventListener('touchstart', pointerDown, { passive: false });
-  window.addEventListener('mousemove', pointerMove);
-  window.addEventListener('touchmove', pointerMove, { passive: false });
-  window.addEventListener('mouseup', pointerUp);
-  window.addEventListener('touchend', pointerUp);
+  function placeSticker(e) {
+    const { x, y } = getPos(e);
 
-  clearBtn.onclick = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  colorPicker.addEventListener('input', () => {
-    if (!isEraser) {
-      ctx.strokeStyle = colorPicker.value;
-    }
-  });
-
-  brushSize.addEventListener('input', () => {
-    ctx.lineWidth = brushSize.value;
-  });
-
-  eraserBtn.onclick = () => {
-    isEraser = !isEraser;
-    if (isEraser) {
-      eraserBtn.textContent = 'Eraser On';
-      ctx.strokeStyle = '#00000000'; // transparent since we clear pixels instead
-    } else {
-      eraserBtn.textContent = 'Eraser Off';
-      ctx.strokeStyle = colorPicker.value;
-    }
-  };
-
-  uploadBtn.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      bg.src = event.target.result;
-
-      // Clear drawing when image changes
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    };
-    reader.readAsDataURL(file);
-  });
-})();
-</script>
-</body>
-</html>
+    // Create sticker element
+    const sticker = document.createElement('img');
+    sticker.className = 'sticker';
+    sticker.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+      <svg viewBox="0 0 60 100" xmlns="http://www.w3.org/2000/svg">
+        <!-- Simple stylized cartoon "pee pee" shape -->
+        <defs>
+          <radialGradient id="grad" cx="50%" cy="30%" r="50%">
+            <stop offset="0%" stop-color="#fcd7b6" />
+            <stop offset="100%" stop-color="#db9f82" />
+          </radialGradient>
+        </defs>
+        <path fill="url(#grad)" stroke="#a6653d" stroke-width="2"
+          d="M30 5
+             Q40 15 38 40
+             Q42 85 30 95
+             Q18 85 22 40
+             Q20 15 30 5 Z
+             M28 55
+             Q30 60 32 55
+             Q30 53 28 55 Z" />
+      </svg>
+    `);
+    // Position the sticker centered at click/tap
+    const wrapperRect = document.getElementById('wrapper').getBou
