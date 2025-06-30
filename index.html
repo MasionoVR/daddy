@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>DadPic – Draw with Color, Eraser & Brush Size</title>
+<title>Draw on Uploadable Picture</title>
 
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -12,6 +12,7 @@
     margin: 0;
     height: 100%;
     overflow: hidden;
+    background: #000;
   }
   #wrapper {
     position: relative;
@@ -46,7 +47,7 @@
     gap: 0.6rem 1rem;
     align-items: center;
     user-select: none;
-    max-width: 280px;
+    max-width: 320px;
   }
   #controls label {
     white-space: nowrap;
@@ -74,18 +75,24 @@
     padding: 0;
     background: none;
   }
+  #uploadBtn {
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
   <div id="wrapper">
-    <img id="bg" src="DadPic.png" alt="Dad Picture" />
+    <img id="bg" src="DadPic.png" alt="Picture to draw on" />
     <canvas id="paint"></canvas>
   </div>
 
   <div id="controls">
+    <label for="uploadBtn">Upload Image:</label>
+    <input type="file" id="uploadBtn" accept="image/*" title="Upload an image to draw on" />
+
     <label for="colorPicker">Pen color:</label>
     <input type="color" id="colorPicker" value="#000000" title="Choose pen color" />
-    
+
     <label for="brushSize">Brush size:</label>
     <input type="range" id="brushSize" min="1" max="50" value="4" title="Brush size" />
 
@@ -97,6 +104,8 @@
 (() => {
   const canvas = document.getElementById('paint');
   const ctx = canvas.getContext('2d');
+  const bg = document.getElementById('bg');
+  const uploadBtn = document.getElementById('uploadBtn');
   const colorPicker = document.getElementById('colorPicker');
   const clearBtn = document.getElementById('clearBtn');
   const eraserBtn = document.getElementById('eraserBtn');
@@ -109,6 +118,7 @@
   function resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
+
     // Save current drawing before resizing (optional)
     const temp = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
@@ -149,7 +159,6 @@
     ctx.lineTo(x, y);
 
     if (isEraser) {
-      // Erase by clearing a small rectangle around the line
       ctx.clearRect(x - ctx.lineWidth/2, y - ctx.lineWidth/2, ctx.lineWidth, ctx.lineWidth);
     } else {
       ctx.stroke();
@@ -187,13 +196,26 @@
     isEraser = !isEraser;
     if (isEraser) {
       eraserBtn.textContent = 'Eraser On';
-      // When erasing, no stroke color because we clear pixels instead
-      ctx.strokeStyle = '#00000000'; // fully transparent
+      ctx.strokeStyle = '#00000000'; // transparent since we clear pixels instead
     } else {
       eraserBtn.textContent = 'Eraser Off';
       ctx.strokeStyle = colorPicker.value;
     }
   };
+
+  uploadBtn.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      bg.src = event.target.result;
+
+      // Clear drawing when image changes
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+    reader.readAsDataURL(file);
+  });
 })();
 </script>
 </body>
