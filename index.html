@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Draw with Pee Pee Sticker Placement</title>
+<title>Mason's Custom Drawer</title>
 
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -38,7 +38,7 @@
   #stickers {
     position: absolute;
     inset: 0;
-    pointer-events: none; /* stickers container doesn't block pointer */
+    pointer-events: none;
     z-index: 2;
   }
   .sticker {
@@ -73,7 +73,7 @@
     gap: 0.6rem 1rem;
     align-items: center;
     user-select: none;
-    max-width: 340px;
+    max-width: 380px;
     z-index: 10;
   }
   #controls label {
@@ -102,8 +102,9 @@
     padding: 0;
     background: none;
   }
-  #uploadBtn {
+  input[type=file] {
     cursor: pointer;
+    max-width: 120px;
   }
 </style>
 </head>
@@ -118,8 +119,11 @@
   <img id="previewSticker" src="peepee.png" alt="Sticker preview" />
 
   <div id="controls">
-    <label for="uploadBtn">Upload Image:</label>
-    <input type="file" id="uploadBtn" accept="image/*" title="Upload an image to draw on" />
+    <label for="uploadBtn">Upload Background:</label>
+    <input type="file" id="uploadBtn" accept="image/*" title="Upload background image" />
+
+    <label for="uploadStickerBtn">Upload Sticker:</label>
+    <input type="file" id="uploadStickerBtn" accept="image/*" title="Upload sticker image" />
 
     <label for="colorPicker">Pen color:</label>
     <input type="color" id="colorPicker" value="#000000" title="Choose pen color" />
@@ -128,8 +132,8 @@
     <input type="range" id="brushSize" min="1" max="50" value="4" title="Brush size" />
 
     <button id="eraserBtn" title="Toggle eraser">Eraser Off</button>
-    <button id="clearBtn" title="Clear drawing">Clear</button>
-    <button id="stickerBtn" title="Add Pee Pee Sticker">Add Pee Pee Sticker</button>
+    <button id="clearBtn" title="Clear drawing and stickers">Clear</button>
+    <button id="stickerBtn" title="Add Sticker">Add Sticker</button>
   </div>
 
 <script>
@@ -138,6 +142,7 @@
   const ctx = canvas.getContext('2d');
   const bg = document.getElementById('bg');
   const uploadBtn = document.getElementById('uploadBtn');
+  const uploadStickerBtn = document.getElementById('uploadStickerBtn');
   const colorPicker = document.getElementById('colorPicker');
   const clearBtn = document.getElementById('clearBtn');
   const eraserBtn = document.getElementById('eraserBtn');
@@ -151,6 +156,7 @@
   let isEraser = false;
   let placingSticker = false;
 
+  // Resize canvas and keep drawing content
   function resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -213,22 +219,21 @@
 
   function movePreviewSticker(e) {
     const { x, y } = getPos(e);
-    // Center the preview image on cursor
-    previewSticker.style.left = (x - previewSticker.width / 2) + 'px';
-    previewSticker.style.top = (y - previewSticker.height / 2) + 'px';
+    // Position top-left corner of preview sticker exactly at cursor
+    previewSticker.style.left = x + 'px';
+    previewSticker.style.top = y + 'px';
   }
 
   function placeSticker(e) {
     const { x, y } = getPos(e);
-    // Create a new img element for sticker
     const sticker = document.createElement('img');
     sticker.className = 'sticker';
     sticker.src = previewSticker.src;
 
     const wrapperRect = document.getElementById('wrapper').getBoundingClientRect();
-    // Position relative to #wrapper
-    const left = x - wrapperRect.left - sticker.width / 2;
-    const top = y - wrapperRect.top - sticker.height / 2;
+    // Position relative to wrapper, top-left exactly where cursor was
+    const left = x - wrapperRect.left;
+    const top = y - wrapperRect.top;
     sticker.style.left = left + 'px';
     sticker.style.top = top + 'px';
 
@@ -261,7 +266,7 @@
     isEraser = !isEraser;
     if (isEraser) {
       eraserBtn.textContent = 'Eraser On';
-      ctx.strokeStyle = '#00000000'; // transparent because clearing pixels
+      ctx.strokeStyle = '#00000000';
     } else {
       eraserBtn.textContent = 'Eraser Off';
       ctx.strokeStyle = colorPicker.value;
@@ -274,7 +279,7 @@
       stickerBtn.textContent = 'Click to Place Sticker';
       previewSticker.style.display = 'block';
     } else {
-      stickerBtn.textContent = 'Add Pee Pee Sticker';
+      stickerBtn.textContent = 'Add Sticker';
       previewSticker.style.display = 'none';
     }
   };
@@ -289,6 +294,17 @@
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       stickersContainer.innerHTML = '';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  uploadStickerBtn.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      previewSticker.src = event.target.result;
     };
     reader.readAsDataURL(file);
   });
