@@ -1,36 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>DadPic — Fit to Screen</title>
+<meta charset="utf-8" />
+<title>DadPic – Draw‑on‑Me</title>
 
-  <!-- Mobile‑friendly sizing -->
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<!-- Mobile‑friendly sizing -->
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
-  <style>
-    /* Reset and make a flexbox that centers content */
-    html, body {
-      margin: 0;
-      height: 100%;
-      display: flex;
-      align-items: center;      /* vertical center */
-      justify-content: center;  /* horizontal center */
-      background: #000;         /* black letterbox bands (optional) */
-    }
+<style>
+  /* Reset & stack the layers */
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+  #wrapper {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background: #000;          /* letterbox bars */
+  }
+  /* Background picture */
+  #bg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;       /* show whole image */
+    object-position: center;
+    display: block;
+    user-select: none;         /* keep image from being dragged */
+    -webkit-user-drag: none;
+  }
+  /* Transparent drawing surface */
+  #paint {
+    position: absolute;
+    inset: 0;                  /* top:0 right:0 bottom:0 left:0 */
+    touch-action: none;        /* prevent page scrolling while drawing */
+  }
 
-    /* Image scales down but never up beyond its own pixels */
-    img {
-      max-width: 90vw;   /* leave a 5 % margin on each side */
-      max-height: 90vh;  /* leave a 5 % margin top/bottom */
-      width: auto;
-      height: auto;
-      display: block;
-    }
-  </style>
+  /* Optional clear button */
+  #clearBtn {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    padding: .5rem 1rem;
+    font: 1rem/1 sans-serif;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255,255,255,.8);
+    cursor: pointer;
+  }
+</style>
 </head>
 <body>
-  <!-- Ensure DadPic.png is in the same folder -->
-  <img src="DadPic.png" alt="Dad Picture" />
+  <div id="wrapper">
+    <img id="bg" src="DadPic.png" alt="Dad Picture">
+    <canvas id="paint"></canvas>
+  </div>
+  <button id="clearBtn" title="Clear drawing">Clear</button>
+
+<script>
+(() => {
+  const canvas = document.getElementById('paint');
+  const ctx     = canvas.getContext('2d');
+  const dpr     = window.devicePixelRatio || 1;
+  let drawing   = false, prevX = 0, prevY = 0;
+
+  /* Resize canvas to fill viewport (support hi‑dpi) */
+  function resize() {
+    const { innerWidth: w, innerHeight: h } = window;
+    canvas.width  = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.scale(dpr, dpr);
+    ctx.lineCap   = 'round';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#000000';  // black pen
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  /* Pointer helpers */
+  function getPos(e) {
+    if (e.touches && e.touches[0]) e = e.touches[0];
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function pointerDown(e) {
+    drawing = true;
+    ({ x: prevX, y: prevY } = getPos(e));
+    e.preventDefault();
+  }
+
+  function pointerMove(e) {
+    if (!drawing) return;
+    const { x, y } = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(prevX, prevY);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    prevX = x;
+    prevY = y;
+    e.preventDefault();
+  }
+
+  function pointerUp() { drawing = false; }
+
+  /* Attach events – works for mouse & touch */
+  canvas.addEventListener('mousedown', pointerDown);
+  canvas.addEventListener('touchstart', pointerDown, { passive: false });
+  window.addEventListener('mousemove', pointerMove);
+  window.addEventListener('touchmove', pointerMove, { passive: false });
+  window.addEventListener('mouseup', pointerUp);
+  window.addEventListener('touchend', pointerUp);
+
+  /* Clear button */
+  document.getElementById('clearBtn').onclick = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+})();
+</script>
 </body>
 </html>
