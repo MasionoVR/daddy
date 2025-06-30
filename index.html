@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>DadPic – Draw with Color Picker</title>
+<title>DadPic – Draw with Color, Eraser & Brush Size</title>
 
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -37,25 +37,42 @@
     position: fixed;
     top: 1rem;
     right: 1rem;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.95);
     padding: 0.5rem 1rem;
     border-radius: 8px;
     font-family: sans-serif;
     display: flex;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
     align-items: center;
     user-select: none;
+    max-width: 280px;
   }
-  #clearBtn {
+  #controls label {
+    white-space: nowrap;
+  }
+  #clearBtn, #eraserBtn {
     padding: 0.3rem 0.7rem;
     border: none;
     border-radius: 5px;
     background: #444;
     color: white;
     cursor: pointer;
+    user-select: none;
   }
-  #clearBtn:hover {
+  #clearBtn:hover, #eraserBtn:hover {
     background: #222;
+  }
+  input[type=range] {
+    cursor: pointer;
+  }
+  input[type=color] {
+    cursor: pointer;
+    width: 36px;
+    height: 28px;
+    border: none;
+    padding: 0;
+    background: none;
   }
 </style>
 </head>
@@ -68,6 +85,11 @@
   <div id="controls">
     <label for="colorPicker">Pen color:</label>
     <input type="color" id="colorPicker" value="#000000" title="Choose pen color" />
+    
+    <label for="brushSize">Brush size:</label>
+    <input type="range" id="brushSize" min="1" max="50" value="4" title="Brush size" />
+
+    <button id="eraserBtn" title="Toggle eraser">Eraser Off</button>
     <button id="clearBtn" title="Clear drawing">Clear</button>
   </div>
 
@@ -77,20 +99,33 @@
   const ctx = canvas.getContext('2d');
   const colorPicker = document.getElementById('colorPicker');
   const clearBtn = document.getElementById('clearBtn');
+  const eraserBtn = document.getElementById('eraserBtn');
+  const brushSize = document.getElementById('brushSize');
   const dpr = window.devicePixelRatio || 1;
+  
   let drawing = false, prevX = 0, prevY = 0;
+  let isEraser = false;
 
   function resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
+    // Save current drawing before resizing (optional)
+    const temp = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
+
     ctx.scale(dpr, dpr);
     ctx.lineCap = 'round';
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = colorPicker.value;
+
+    // Restore brush size & color/eraser
+    ctx.lineWidth = brushSize.value;
+    ctx.strokeStyle = isEraser ? '#00000000' : colorPicker.value;
+
+    // Restore previous drawing
+    ctx.putImageData(temp, 0, 0);
   }
   resize();
   window.addEventListener('resize', resize);
@@ -112,7 +147,14 @@
     ctx.beginPath();
     ctx.moveTo(prevX, prevY);
     ctx.lineTo(x, y);
-    ctx.stroke();
+
+    if (isEraser) {
+      // Erase by clearing a small rectangle around the line
+      ctx.clearRect(x - ctx.lineWidth/2, y - ctx.lineWidth/2, ctx.lineWidth, ctx.lineWidth);
+    } else {
+      ctx.stroke();
+    }
+
     prevX = x;
     prevY = y;
     e.preventDefault();
@@ -132,8 +174,26 @@
   };
 
   colorPicker.addEventListener('input', () => {
-    ctx.strokeStyle = colorPicker.value;
+    if (!isEraser) {
+      ctx.strokeStyle = colorPicker.value;
+    }
   });
+
+  brushSize.addEventListener('input', () => {
+    ctx.lineWidth = brushSize.value;
+  });
+
+  eraserBtn.onclick = () => {
+    isEraser = !isEraser;
+    if (isEraser) {
+      eraserBtn.textContent = 'Eraser On';
+      // When erasing, no stroke color because we clear pixels instead
+      ctx.strokeStyle = '#00000000'; // fully transparent
+    } else {
+      eraserBtn.textContent = 'Eraser Off';
+      ctx.strokeStyle = colorPicker.value;
+    }
+  };
 })();
 </script>
 </body>
