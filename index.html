@@ -23,22 +23,6 @@
       color: white;
       cursor: pointer;
     }
-    #suggestions {
-      background: #222;
-      color: white;
-      width: 300px;
-      margin: 0 auto;
-      border-radius: 5px;
-      position: absolute;
-      z-index: 10;
-    }
-    #suggestions div {
-      padding: 8px;
-      cursor: pointer;
-    }
-    #suggestions div:hover {
-      background-color: #444;
-    }
     iframe {
       margin-top: 30px;
       width: 100%;
@@ -51,45 +35,41 @@
 </head>
 <body>
   <h1>Live YouTube Subscriber Count</h1>
-  <input type="text" id="channelInput" placeholder="Type channel handle or name..." oninput="suggestChannels()">
-  <div id="suggestions"></div>
+  <input type="text" id="channelInput" placeholder="Type channel name..." />
   <button onclick="loadCounter()">Track Channel</button>
 
   <iframe id="counterFrame" style="display:none;"></iframe>
 
   <script>
-    async function suggestChannels() {
-      const input = document.getElementById("channelInput").value.trim();
-      const box = document.getElementById("suggestions");
-      box.innerHTML = "";
+    const API_KEY = "AIzaSyBQg7DsSaPPMMhcF_6cJzrDAM42IiycoOc"; // Replace with your API key
 
-      if (input.length < 2) return;
-
-      const res = await fetch(`https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q=${encodeURIComponent(input)}`);
-      const text = await res.text();
-      const matches = [...text.matchAll(/"([^"]+)"/g)].slice(1, 6);
-
-      matches.forEach(m => {
-        const div = document.createElement("div");
-        div.textContent = m[1];
-        div.onclick = () => {
-          document.getElementById("channelInput").value = m[1];
-          box.innerHTML = "";
-          loadCounter();
-        };
-        box.appendChild(div);
-      });
-    }
-
-    function loadCounter() {
+    async function loadCounter() {
       const input = document.getElementById("channelInput").value.trim();
       if (!input) return;
 
-      const handle = input.startsWith("@") ? input : "@" + input.replace(/\s+/g, "");
-      const url = `https://socialcounts.org/youtube-channel/${encodeURIComponent(handle)}`;
-      const frame = document.getElementById("counterFrame");
-      frame.src = url;
-      frame.style.display = "block";
+      try {
+        // Search for channel
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(input)}&maxResults=1&key=${API_KEY}`);
+        const data = await res.json();
+        if (!data.items.length) throw new Error("Channel not found");
+
+        const channelId = data.items[0].snippet.channelId;
+
+        // Get the custom handle
+        const chanRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${channelId}&key=${API_KEY}`);
+        const chanData = await chanRes.json();
+        const customUrl = chanData.items[0].snippet.customUrl || chanData.items[0].snippet.title;
+
+        const handle = customUrl.startsWith("@") ? customUrl : `@${customUrl}`;
+        const url = `https://socialcounts.org/youtube-channel/${encodeURIComponent(handle)}`;
+
+        const iframe = document.getElementById("counterFrame");
+        iframe.src = url;
+        iframe.style.display = "block";
+      } catch (e) {
+        alert("Channel not found or invalid input.");
+        console.error(e);
+      }
     }
   </script>
 </body>
