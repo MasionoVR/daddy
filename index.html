@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>YouTube Live Sub Count</title>
+  <title>Live YouTube Sub Count</title>
   <style>
     body {
       background-color: #000;
@@ -51,44 +51,45 @@
 </head>
 <body>
   <h1>Live YouTube Subscriber Count</h1>
-  <input type="text" id="channelInput" placeholder="Type channel name..." oninput="searchChannel()" autocomplete="off">
+  <input type="text" id="channelInput" placeholder="Type channel handle or name..." oninput="suggestChannels()">
   <div id="suggestions"></div>
   <button onclick="loadCounter()">Track Channel</button>
 
   <iframe id="counterFrame" style="display:none;"></iframe>
 
   <script>
-    async function searchChannel() {
+    async function suggestChannels() {
       const input = document.getElementById("channelInput").value.trim();
-      const suggestionsBox = document.getElementById("suggestions");
-      suggestionsBox.innerHTML = "";
+      const box = document.getElementById("suggestions");
+      box.innerHTML = "";
 
       if (input.length < 2) return;
 
-      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(input)}&maxResults=5&key=AIzaSyBQg7DsSaPPMMhcF_6cJzrDAM42IiycoOc`);
-      const data = await res.json();
+      const res = await fetch(`https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q=${encodeURIComponent(input)}`);
+      const text = await res.text();
+      const matches = [...text.matchAll(/"([^"]+)"/g)].slice(1, 6);
 
-      data.items.forEach(item => {
+      matches.forEach(m => {
         const div = document.createElement("div");
-        div.textContent = item.snippet.channelTitle;
+        div.textContent = m[1];
         div.onclick = () => {
-          document.getElementById("channelInput").value = item.snippet.channelTitle;
-          suggestionsBox.innerHTML = "";
-          loadCounter(item.snippet.channelTitle);
+          document.getElementById("channelInput").value = m[1];
+          box.innerHTML = "";
+          loadCounter();
         };
-        suggestionsBox.appendChild(div);
+        box.appendChild(div);
       });
     }
 
-    function loadCounter(nameOverride = null) {
-      const input = nameOverride || document.getElementById("channelInput").value.trim();
+    function loadCounter() {
+      const input = document.getElementById("channelInput").value.trim();
       if (!input) return;
 
-      // Livecounts.io format: https://livecounts.io/youtube-live-subscriber-counter/<channel name>
-      const url = `https://livecounts.io/youtube-live-subscriber-counter/${encodeURIComponent(input)}`;
-      const iframe = document.getElementById("counterFrame");
-      iframe.src = url;
-      iframe.style.display = "block";
+      const handle = input.startsWith("@") ? input : "@" + input.replace(/\s+/g, "");
+      const url = `https://socialcounts.org/youtube-channel/${encodeURIComponent(handle)}`;
+      const frame = document.getElementById("counterFrame");
+      frame.src = url;
+      frame.style.display = "block";
     }
   </script>
 </body>
